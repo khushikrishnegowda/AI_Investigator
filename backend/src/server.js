@@ -1,9 +1,10 @@
 import dotenv from 'dotenv';
 import express from 'express';
-import cors from 'cors';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { Mystery, Investigation, User } from './models.js';
 import { generateMystery } from './gemini.js';
@@ -13,7 +14,6 @@ dotenv.config({ path: new URL('../../.env', import.meta.url) });
 
 const app = express();
 const generationLocks = new Set();
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
 app.use(express.json({ limit: '1mb' }));
 
 function auth(req, _res, next) {
@@ -133,6 +133,15 @@ app.delete('/api/investigations/:id', wrap(async (req, res) => {
   res.status(row ? 204 : 404).end();
 }));
 
+if (process.env.NODE_ENV === 'production') {
+  const frontendDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../frontend/dist');
+  app.use(express.static(frontendDist));
+  app.get(/^(?!\/api(?:\/|$)).*/, (req, res, next) => {
+    if (req.method !== 'GET') return next();
+    res.sendFile(path.join(frontendDist, 'index.html'), error => error && next(error));
+  });
+}
+
 app.use((err, _req, res, _next) => {
   const status = err.status || (err.name === 'ZodError' ? 400 : 500);
   const message = err.name === 'ZodError' ? err.issues?.[0]?.message || 'Invalid request.' : err.message || 'Something went wrong.';
@@ -141,5 +150,9 @@ app.use((err, _req, res, _next) => {
 });
 
 const port = Number(process.env.PORT || 5000);
+if (process.env.NODE_ENV === 'production') {
+  const missing = ['MONGODB_URI', 'GEMINI_API_KEY', 'JWT_SECRET'].filter(key => !process.env[key]);
+  if (missing.length) throw new Error(`Missing required production environment variables: ${missing.join(', ')}`);
+}
 await mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ai-mystery-room');
-app.listen(port, () => console.log(`AI Mystery Room API listening on ${port}`));
+app.listen(port, '0.0.0.0', () => console.log(`AI Mystery Room API listening on ${port}`));

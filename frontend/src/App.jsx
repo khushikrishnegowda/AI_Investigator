@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, AudioLines, BookOpen, Check, ChevronDown, ChevronRight, CircleHelp, Clock3, FileText, Fingerprint, Image, LockKeyhole, MessageSquare, Plus, Search, Shield, Sparkles, Trash2, Users, X } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API = import.meta.env.VITE_API_URL || '/api';
 async function call(path, options = {}) {
   const token = localStorage.getItem('casefile-token');
   const response = await fetch(`${API}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers } });
